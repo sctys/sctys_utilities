@@ -21,7 +21,7 @@ def set_logger(logger_path, logger_file_name, logger_level, logger_name):
     return logger
 
 
-def parametrized_decorator(decorator):
+def parameterized_decorator(decorator):
     def layer(*args, **kwargs):
         def repl(func):
             return decorator(func, *args, **kwargs)
@@ -29,7 +29,7 @@ def parametrized_decorator(decorator):
     return layer
 
 
-@ parametrized_decorator
+@ parameterized_decorator
 def run_time_decorator(func, logger):
     def run_time(*args, **kwargs):
         start_time = time.time()
@@ -40,6 +40,31 @@ def run_time_decorator(func, logger):
     return run_time
 
 
+@ parameterized_decorator
+def retry_decorator(func, checker, num_retry, sleep_time, logger):
+    def retry(*args, **kwargs):
+        count = 0
+        run_success = False
+        response = {'status': False, 'terminate': False, 'message': 'Function {} not run yet'.format(func.__name__)}
+        while count < num_retry and not run_success:
+            response = func(*args, **kwargs)
+            if not checker(response)['status']:
+                if not checker(response)['terminate']:
+                    logger.error(
+                        'Fail attempt {} for function {}: {}'.format(
+                            count + 1, func.__name__, checker(response)['message']))
+                    time.sleep(sleep_time)
+                    count += 1
+                else:
+                    logger.error(
+                        'Terminate after attempt for function {}: {}'.format(
+                            count + 1, func.__name__, checker(response)['message']))
+                    count = num_retry
+            else:
+                run_success = True
+        return response
+    return retry
+                
 
 
 
