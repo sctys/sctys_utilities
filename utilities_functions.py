@@ -48,7 +48,7 @@ def retry_wrapper(func, checker, num_retry, sleep_time, logger):
                     count += 1
                 else:
                     logger.error(
-                        'Terminate after attempt for function {}: {}'.format(
+                        'Terminate after attempt {} for function {}: {}'.format(
                             count + 1, func.__name__, checker(response)['message']))
                     count = num_retry
             else:
