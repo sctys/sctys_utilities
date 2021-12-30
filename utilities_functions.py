@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import logging.handlers
+import asyncio
 
 
 def set_logger(logger_path, logger_file_name, logger_level, logger_name):
@@ -21,16 +22,7 @@ def set_logger(logger_path, logger_file_name, logger_level, logger_name):
     return logger
 
 
-def parameterized_decorator(decorator):
-    def layer(*args, **kwargs):
-        def repl(func):
-            return decorator(func, *args, **kwargs)
-        return repl
-    return layer
-
-
-@ parameterized_decorator
-def run_time_decorator(func, logger):
+def run_time_wrapper(func, logger):
     def run_time(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
@@ -40,12 +32,11 @@ def run_time_decorator(func, logger):
     return run_time
 
 
-@ parameterized_decorator
-def retry_decorator(func, checker, num_retry, sleep_time, logger):
+def retry_wrapper(func, checker, num_retry, sleep_time, logger):
     def retry(*args, **kwargs):
         count = 0
         run_success = False
-        response = {'status': False, 'terminate': False, 'message': 'Function {} not run yet'.format(func.__name__)}
+        response = {'ok': False, 'error': 'Function {} not run yet'.format(func.__name__)}
         while count < num_retry and not run_success:
             response = func(*args, **kwargs)
             if not checker(response)['status']:
@@ -62,9 +53,37 @@ def retry_decorator(func, checker, num_retry, sleep_time, logger):
                     count = num_retry
             else:
                 run_success = True
+        if not run_success and response['ok']:
+            response = {'ok': False, 'error': checker(response)['message']}
         return response
     return retry
-                
+
+
+async def async_retry_wrapper(func, checker, num_retry, sleep_time, logger):
+    async def async_retry(*args, **kwargs):
+        count = 0
+        run_success = False
+        response = {'status': False, 'terminate': False, 'message': 'Function {} not run yet'.format(func.__name__)}
+        while count < num_retry and not run_success:
+            response = await func(*args, **kwargs)
+            if not checker(response)['status']:
+                if not checker(response)['terminate']:
+                    logger.error(
+                        'Fail attempt {} for function {}: {}'.format(
+                            count + 1, func.__name__, checker(response)['message']))
+                    await asyncio.sleep(sleep_time)
+                    count += 1
+                else:
+                    logger.error(
+                        'Terminate after attempt for function {}: {}'.format(
+                            count + 1, func.__name__, checker(response)['message']))
+                    count = num_retry
+            else:
+                run_success = True
+        if not run_success and response['ok']:
+            response = {'ok': False, 'error': checker(response)['message']}
+        return response
+    return async_retry
 
 
 
