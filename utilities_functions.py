@@ -1,6 +1,8 @@
 import os
 import time
 import logging
+import datetime
+import pytz
 import logging.handlers
 import asyncio
 
@@ -19,6 +21,7 @@ def set_logger(logger_path, logger_file_name, logger_level, logger_name):
     stream_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
+    logger = logging.getLogger(logger_name)
     return logger
 
 
@@ -59,7 +62,7 @@ def retry_wrapper(func, checker, num_retry, sleep_time, logger):
     return retry
 
 
-async def async_retry_wrapper(func, checker, num_retry, sleep_time, logger):
+def async_retry_wrapper(func, checker, num_retry, sleep_time, logger):
     async def async_retry(*args, **kwargs):
         count = 0
         run_success = False
@@ -85,6 +88,11 @@ async def async_retry_wrapper(func, checker, num_retry, sleep_time, logger):
         return response
     return async_retry
 
+
+def convert_datetime_to_timestamp(date_str, time_zone):
+    time_stamp = datetime.datetime.strptime(
+        date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.timezone(time_zone)).timestamp()
+    return int(time_stamp)
 
 
 
