@@ -3,6 +3,8 @@ import time
 import logging
 import datetime
 import pytz
+import json
+import re
 import logging.handlers
 import asyncio
 
@@ -89,10 +91,34 @@ def async_retry_wrapper(func, checker, num_retry, sleep_time, logger):
     return async_retry
 
 
-def convert_datetime_to_timestamp(date_str, time_zone):
-    time_stamp = datetime.datetime.strptime(
-        date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.timezone(time_zone)).timestamp()
+def error_notifier_wrapper(func, notifier):
+    def error_notifier(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            notifier.retry_send_message('Error in {}: {}'.format(func.__name__, e))
+    return error_notifier
+
+
+def convert_datetime_to_timestamp(date_str, time_zone=None):
+    if time_zone is not None:
+        time_stamp = datetime.datetime.strptime(
+            date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.timezone(time_zone)).timestamp()
+    else:
+        time_stamp = datetime.datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S').timestamp()
     return int(time_stamp)
+
+
+def clean_json_loads(text, additional_rules):
+    text = text.replace("'", '"').replace('\t', ' ').replace('<br>', '').replace('""""', '""').replace('"""', '""')
+    for origin, replacement in additional_rules.items():
+        text = re.sub(origin, replacement, text)
+    try:
+        text = json.loads(text)
+        return text
+    except json.decoder.JSONDecodeError:
+        print(text)
+    
 
 
 
