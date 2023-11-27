@@ -97,6 +97,7 @@ def error_notifier_wrapper(func, notifier):
             func(*args, **kwargs)
         except Exception as e:
             notifier.retry_send_message('Error in {}: {}'.format(func.__name__, e))
+            raise
     return error_notifier
 
 
